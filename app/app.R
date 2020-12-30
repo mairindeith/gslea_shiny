@@ -115,8 +115,12 @@ server <- function(input, output, session){
     # Change outputDF depending on which variables are selected
     observeEvent(input$var.select, {
       if(input$var.select != ""){
+          # print(paste0("Selected EARs: ", input$EAR.select))
+          # print(paste0("Selected num(EARs): ", as.numeric(input$EAR.select)))
+          # print(paste0("Selected vars: ", input$var.select))
+          # print(paste0("Selected vars: ", input$year.select))
           outputDF <<- reactive({
-              gslea::EA.query.f(variables = input$var.select, years = input$year.select, EARs = input$EAR.select)
+              gslea::EA.query.f(variables = input$var.select, years = seq(input$year.select[1], input$year.select[2]), EARs = as.numeric(input$EAR.select))
           })
       } else {
           outputDF <<- reactive({NULL})
@@ -179,6 +183,8 @@ server <- function(input, output, session){
     dat = gslea::EA.query.f(variables = variables, years = years, EARs = EARs)
     print(paste0("dim(dat): ", dim(dat)))
     actual.EARs = sort(as.numeric(dat[, unique(EAR)]))
+    print(paste0("Plot vars:", variables, ", length: ", length(variables)))
+    print(paste0("Plot EARs:", actual.EARs, ", length: ", length(actual.EARs)))
     no.plots = length(variables) * length(actual.EARs)
     print(paste0("actual.EARs: ", actual.EARs))
     print(paste0("variables: ", variables))
@@ -214,11 +220,11 @@ server <- function(input, output, session){
   }
   #  EA.plot.f(variables, years, EARs, …) 
   observeEvent(input$plot.plot, {
-      print(paste0("Length vars: ", length(input$plot.vars.sel)))
-      print(paste0("Length EARs: ", length(input$plot.EAR.sel)))
-      output$multivar.comp.plot <- EA.plot.f.mod(variables = input$plot.vars.sel, 
-                                             years = as.numeric(as.character(input$plot.years.sel)), 
-                                             EARs = as.numeric(as.character(input$plot.EAR.sel)),
+#      print(paste0("Length vars: ", length(input$plot.vars.sel)))
+#      print(paste0("Length EARs: ", length(input$plot.EAR.sel)))
+      output$multivar.comp.plot <- EA.plot.f(variables = input$plot.vars.sel, 
+                                             years = seq(input$plot.years.sel[1], input$plot.years.sel[2]), 
+                                             EARs = as.numeric(input$plot.EAR.sel),
                                              smoothing = input$plot.smoothing)
   })
 
