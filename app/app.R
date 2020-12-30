@@ -44,8 +44,8 @@ ui <- fluidPage(
           helpText("Filter to selected years:"), # Smoothing options
           uiOutput("plot.years"), # which years to plot
           # For now, ignore graphical parameters and only include smoothing
-          checkboxInput("plot.smoothing", label="Plot with smoothing", value=F),
-          actionButton("plot.plot", label="Create plot")
+          checkboxInput("plot.smoothing", label="Plot with smoothing", value=F)
+          # actionButton("plot.plot", label="Create plot")
       ),
       mainPanel(
           plotOutput("multivar.comp.plot")
@@ -219,14 +219,16 @@ server <- function(input, output, session){
         4.1, 2.1), ask = F)
   }
   #  EA.plot.f(variables, years, EARs, …) 
-  observeEvent(input$plot.plot, {
+ # observeEvent(input$plot.plot, {
 #      print(paste0("Length vars: ", length(input$plot.vars.sel)))
 #      print(paste0("Length EARs: ", length(input$plot.EAR.sel)))
-      output$multivar.comp.plot <- EA.plot.f(variables = input$plot.vars.sel, 
-                                             years = seq(input$plot.years.sel[1], input$plot.years.sel[2]), 
-                                             EARs = as.numeric(input$plot.EAR.sel),
-                                             smoothing = input$plot.smoothing)
-  })
+      output$multivar.comp.plot <- renderPlot({
+        EA.plot.f(variables = input$plot.vars.sel, 
+          years = seq(input$plot.years.sel[1], input$plot.years.sel[2]), 
+          EARs = as.numeric(input$plot.EAR.sel),
+          smoothing = input$plot.smoothing)
+        })
+  # })
 
 
   #!# Tab 3: X-corr inputs
