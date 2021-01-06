@@ -44,35 +44,38 @@ ui <- fluidPage(
           helpText("Filter to selected years:"), # Smoothing options
           uiOutput("plot.years"), # which years to plot
           # For now, ignore graphical parameters and only include smoothing
-          checkboxInput("plot.smoothing", label="Plot with smoothing", value=F)
-          # actionButton("plot.plot", label="Create plot")
+          checkboxInput("plot.smoothing", label="Plot with smoothing", value=F),
+          actionButton("plot.plot", label="Create plot")
       ),
       mainPanel(
-          plotOutput("multivar.comp.plot")
+        plotOutput("multivar.comp.plot")
       )
-  )
-  )
-###  ),
-###  tabPanel(title = "Cross-correlation", 
-###      h2("Calculate cross-correlation between selected variables (with lags)"),
-###      helpText("Note: only variables selcted in `Variable selection & download` are available here."),
-###      sidebarPanel(
-###          h3("Variables selected in previous panel"),
-###          #!# Action: if including shinyjs, hide these if there is insufficient input
-###          uiOutput("corr.previous.one"), # choose the first variable for cross-correlation
-###          uiOutput("corr.previous.two"), # choose the second variable for cross-correlation
-###          h4("Variable subsetting options:"), # Smoothing options
-###          uiOutput("corr.years"), # which years to consider
-###          uiOutput("corr.EAR"), # select up to 5 EARs
-###          # For now, ignore graphical parameters and only include smoothing
-###          helpText("You can optionally difference the variables to make them stationary, and therefore correlate how the values of each of the variables change from year to year as opposed to their absolute values."),
-###          # checkboxInput("plot.smoothing", label="Plot smoothing", value=F)
-###      ),
-###      mainPanel(
-###          plotOutput("cross.corr.plot")
-###      )
-###  ) 
-  )
+    ), 
+    tabPanel(title = "Cross-correlation", 
+      h2("Calculate cross-correlation between selected variables (with lags)"),
+      helpText("Note: only variables selcted in `Variable selection & download` are available here."),
+      sidebarPanel(
+          # h3("Variables selected in previous panel"),
+          #!# Action: if including shinyjs, hide these if there is insufficient input
+          h4("Select & filter independent variable data"),
+          uiOutput("corr.varx"), # choose the ind/x variable for cross-correlation
+          uiOutput("corr.EARx"), # select x EAR
+          h4("Select & filter dependent variable data"),
+          uiOutput("corr.vary"), # choose the ind/y variable for cross-correlation
+          uiOutput("corr.EARy"), # select y EAR
+          h4("Select years for plotting"), 
+          helpText("The largest continuous block of time in these years will be chosen. If you select years where data are not available, they are pairwise deleted before correlation is run. Only contiguous points (in time) are used because of the assumptions of lagged correlation analysis."),
+          uiOutput("corr.years"), # which years to consider
+          # For now, ignore graphical parameters and only include smoothing
+          helpText("You can optionally difference the variables to make them stationary, and therefore correlate how the values of each of the variables change from year to year as opposed to their absolute values."),
+          checkboxInput("corr.diff", label="Difference variables?", value=F)
+      ),
+      mainPanel(
+          plotOutput("cross.corr.plot")
+      )
+    )
+  ) 
+)
 
 server <- function(input, output, session){
     # Reactive inputs:
@@ -114,11 +117,7 @@ server <- function(input, output, session){
     #!# Tab 1 actions: 
     # Change outputDF depending on which variables are selected
     observeEvent(input$var.select, {
-      if(input$var.select != ""){
-          # print(paste0("Selected EARs: ", input$EAR.select))
-          # print(paste0("Selected num(EARs): ", as.numeric(input$EAR.select)))
-          # print(paste0("Selected vars: ", input$var.select))
-          # print(paste0("Selected vars: ", input$year.select))
+      if(!is.null(input$var.select)){
           outputDF <<- reactive({
               gslea::EA.query.f(variables = input$var.select, years = seq(input$year.select[1], input$year.select[2]), EARs = as.numeric(input$EAR.select))
           })
@@ -178,61 +177,70 @@ server <- function(input, output, session){
   })
 
   #!# Tab 2: Plotting outputs
-  ### MODIFIED EA.PLOT.F
-  EA.plot.f.mod <- function (variables, years, EARs, smoothing = T, ...){
-    dat = gslea::EA.query.f(variables = variables, years = years, EARs = EARs)
-    print(paste0("dim(dat): ", dim(dat)))
-    actual.EARs = sort(as.numeric(dat[, unique(EAR)]))
-    print(paste0("Plot vars:", variables, ", length: ", length(variables)))
-    print(paste0("Plot EARs:", actual.EARs, ", length: ", length(actual.EARs)))
-    no.plots = length(variables) * length(actual.EARs)
-    print(paste0("actual.EARs: ", actual.EARs))
-    print(paste0("variables: ", variables))
-    print(paste0("no.plots: ", no.plots))
-    if (no.plots > 25) {
-        par(mfcol = c(5, 5), mar = c(1.3, 2, 3.2, 1), omi = c(0.1, 
-            0.1, 0.1, 0.1), ask = T)
-    }
-    if (no.plots <= 25) {
-        par(mfcol = c(length(variables), length(actual.EARs)), 
-            mar = c(1.3, 2, 3.2, 1), omi = c(0.1, 0.1, 0.1, 0.1))
-    }
-    counter = 1
-    for (i in actual.EARs) {
-        ear.dat = dat[EAR == i]
-        for (ii in 1:length(variables)) {
-            var.dat = ear.dat[variable == variables[ii]]
-            if (nrow(var.dat) < 1) 
-                plot(0, xlab = "", ylab = "", xaxt = "n", yaxt = "n", 
-                  main = paste("EAR", i, variables[ii]), ...)
-            if (nrow(var.dat) > 0) 
-                plot(var.dat$year, var.dat$value, xlab = "", 
-                  ylab = "", main = paste("EAR", i, variables[ii]), 
-                  ...)
-            if (nrow(var.dat) > 5 && smoothing == T) 
-                lines(predict(smooth.spline(var.dat$year, var.dat$value, 
-                  df = length(var.dat$value)/3)), ...)
-        }
-        counter = counter + 1
-    }
-    par(mfcol = c(1, 1), omi = c(0, 0, 0, 0), mar = c(5.1, 4.1, 
-        4.1, 2.1), ask = F)
-  }
-  #  EA.plot.f(variables, years, EARs, …) 
- # observeEvent(input$plot.plot, {
-#      print(paste0("Length vars: ", length(input$plot.vars.sel)))
-#      print(paste0("Length EARs: ", length(input$plot.EAR.sel)))
-      output$multivar.comp.plot <- renderPlot({
-        EA.plot.f(variables = input$plot.vars.sel, 
-          years = seq(input$plot.years.sel[1], input$plot.years.sel[2]), 
-          EARs = as.numeric(input$plot.EAR.sel),
-          smoothing = input$plot.smoothing)
-        })
-  # })
-
+  ### Only show up if there is something to plot here
+  observeEvent(input$plot.plot, {
+    output$multivar.comp.plot <- renderPlot({
+      gslea::EA.plot.f(variables = input$plot.vars.sel, 
+        years = seq(input$plot.years.sel[1], input$plot.years.sel[2]), 
+        EARs = as.numeric(input$plot.EAR.sel),
+        smoothing = input$plot.smoothing
+      )
+    })
+  })
 
   #!# Tab 3: X-corr inputs
+  # Select x variable
+  output$corr.varx <- renderUI({
+      selectInput(inputId = "corr.x", 
+                  label = "Select the independent variable to plot on the x-axis (from those selected in the 'Variable selection & download' tab).",
+                  choices = unique(input$var.select),
+                  multiple = F) 
+  })
+  # Select y variable
+  output$corr.vary <- renderUI({
+      selectInput(inputId = "corr.y", 
+                  label = "Select the dependent variable to plot on the y-axis (from those selected in the 'Variable selection & download' tab).",
+                  choices = unique(input$var.select),
+                  multiple = F) 
+  })
+
+  # Select x EAR
+  output$corr.EARx <- renderUI({
+      selectInput(inputId = "corr.EAR.x", 
+                  label = "Filter the independent data to a specific EAR (choose '10' to select all EARs).",
+                  choices = uniqueEARs,
+                  multiple = F)
+  })
+  # Select y EAR
+  output$corr.EARy <- renderUI({
+      selectInput(inputId = "corr.EAR.y", 
+                  label = "Filter the dependent data to a specific EAR (choose '10' to select all EARs).",
+                  choices = uniqueEARs,
+                  multiple = F)
+  })
+
+  # Select years (unlimited)
+  output$corr.years <- renderUI({
+      sliderInput(inputId = "corr.years.sel",
+                  label = "Which years?",
+                  min = min(uniqueYears),
+                  max = max(uniqueYears),
+                  value = c(min(uniqueYears), max(uniqueYears)),
+                  step = 1,
+                  sep = "",
+                  round = 0)
+  })
+
   #!# Tab 3: X-corr outputs
+  output$cross.corr.plot <- renderPlot({
+    gslea::EA.cor.f(x = input$corr.x, 
+                    y = input$corr.y,
+                    x.EAR = input$corr.EAR.x,
+                    y.EAR = input$corr.EAR.y,
+                    years = seq(input$corr.years.sel[1], input$corr.years.sel[2]),
+                    diff = input$corr.diff
+    )
+  })
 }
 
 shiny::shinyApp(ui = ui, server = server)
