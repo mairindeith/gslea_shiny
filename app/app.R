@@ -13,56 +13,66 @@ ui <- fluidPage(
 #  ),
   tabsetPanel(
       id="tabs",
-      tabPanel(title = "Variable selection & download", 
+      tabPanel(title = "Variable selection & download",
       sidebarPanel(
+          # Allow to scroll independently of the mainPanel()
+          style = "position:fixed;width:30%;", 
           # uiOutput to contain names:
           uiOutput("input.vartypes"), #,
           # actionButton("lookup""Lookup variable descriptions for this type"),
           hr(),
           #!# Action: if including shinyjs, hide these if insufficient input
-          helpText("Additional criteria:"), 
+          h4("Additional filters"),
           uiOutput("input.EAR"), 
+          actionLink("input.maplink", "View a map of ecosystem approach regions (EARs) here"),
+          hr(),
           uiOutput("input.year"),
+          hr(),
           uiOutput("input.selected"),
           # DOWNLOAD
           downloadButton("downloadFilteredData", label = "Download selected data")
       ),
       mainPanel(
-          helpText("After submitting variable type, select which variables you would like to output here."),
+          h3("Filter GSLEA variables and download datasets"),
+          helpText("After submitting variable type, you can read descriptions of variables of that type before choosing them for download."),
           textOutput("selected.vars"),
           tableOutput("var.descriptions")
       )
   ),
   tabPanel(title = "Time-series of variables", 
-      h2("Visualize how your variables of interest vary over select years"),
-      helpText("Note: only variables selcted in `Variable selection & download` are available here."),
       sidebarPanel(
           h3("Variables selected in previous panel"),
           #!# Action: if including shinyjs, hide these if there is insufficient input
           uiOutput("plot.vars"), # choose up to 5 variables from the previous
           uiOutput("plot.EAR"), # select up to 5 EARs
-          helpText("Filter to selected years:"), # Smoothing options
+          actionLink("plot.maplink", "View a map of ecosystem approach regions (EARs) here"),
+          hr(),
+          # helpText("Filter to selected years:"), # Smoothing options
           uiOutput("plot.years"), # which years to plot
           # For now, ignore graphical parameters and only include smoothing
+          hr(),
           checkboxInput("plot.smoothing", label="Plot with smoothing", value=F),
           actionButton("plot.plot", label="Create plot")
       ),
       mainPanel(
+        h3("Visualize how your variables of interest vary over select years"),
+        helpText("Note: only variables selcted in `Variable selection & download` are available here."),
         plotOutput("multivar.comp.plot")
       )
     ), 
     tabPanel(title = "Cross-correlation", 
-      h2("Calculate cross-correlation between selected variables (with lags)"),
-      helpText("Note: only variables selcted in `Variable selection & download` are available here."),
       sidebarPanel(
           # h3("Variables selected in previous panel"),
           #!# Action: if including shinyjs, hide these if there is insufficient input
           h4("Select & filter independent variable data"),
+          actionLink("corr.maplink", "View a map of ecosystem approach regions (EARs) here"),
           uiOutput("corr.varx"), # choose the ind/x variable for cross-correlation
           uiOutput("corr.EARx"), # select x EAR
+          hr(),
           h4("Select & filter dependent variable data"),
           uiOutput("corr.vary"), # choose the ind/y variable for cross-correlation
           uiOutput("corr.EARy"), # select y EAR
+          hr(),
           h4("Select years for plotting"), 
           helpText("The largest continuous block of time in these years will be chosen. If you select years where data are not available, they are pairwise deleted before correlation is run. Only contiguous points (in time) are used because of the assumptions of lagged correlation analysis."),
           uiOutput("corr.years"), # which years to consider
@@ -71,28 +81,58 @@ ui <- fluidPage(
           checkboxInput("corr.diff", label="Difference variables?", value=F)
       ),
       mainPanel(
+          h3("Calculate cross-correlation between selected variables (with lags)"),
+          helpText("Note: only variables selcted in `Variable selection & download` are available here."),
           plotOutput("cross.corr.plot")
       )
-    )
+    ),
+    tabPanel(title = "Map of GSLEA Areas", 
+      # sidebarPanel(),
+      mainPanel(
+      imageOutput("gslea_ears", inline=T),
+      # img(src="gslea_ears.jpg", width=600), style="display: block; margin-left: auto; margin-right: auto;"),
+      h4("Figure 1. Map of EARs."),
+      h5("Data are available for download under the 'Variable selection & download' tab spatially divided according to the Gulf of St. Lawrence ecosystem approach regions (EAR) determined in Quebec Region in Spring 2019 (see above map). Some data are larger than these regions - more expansive datasets (e.g. the North Atlantic Oscillation) are indicated with EAR -1. EAR 0 has been reserved for GSL-scale indices.")
+    ))
   ) 
 )
 
 server <- function(input, output, session){
     # Reactive inputs:
+    observeEvent(input$input.maplink, {
+      updateTabsetPanel(session, "tabs", "Map of GSLEA Areas")
+    })
+    observeEvent(input$plot.maplink, {
+      updateTabsetPanel(session, "tabs", "Map of GSLEA Areas")
+    })
+    observeEvent(input$corr.maplink, {
+      updateTabsetPanel(session, "tabs", "Map of GSLEA Areas")
+    })
+    
     datasetInput <- reactive({
         vars.f(variable.type=input$vartype.checkbox)
     })
+    # Render map of GSLEA EARs
+    output$gslea_ears <- renderImage({
+      filename <- normalizePath(file.path('./images/gslea_ears.png'))
+      list(src = filename, alt = "EARs of the GSLEA")
+    }, deleteFile = F)
 
-    uniqueTypes <<- unique(gslea::variable.description$type)
+    # uniqueTypes <<- unique(gslea::variable.description$type)
+    uniqueTypes <<- unique(as.character(gslea::vars.f(variable.type="all")$type))
     uniqueVars <<- unique(gslea::variable.description$label)
     uniqueYears <<- unique(gslea::EA.data$year)
     uniqueEARs <<- unique(gslea::EA.data$EAR)
+
     #!# Tab 1 input: Variable selection
     output$input.vartypes <- renderUI({
         selectInput(inputId = "vartype.checkbox", selectize = T, label = "Variable type(s) to include:", choices = c("all", uniqueTypes), selected = NULL)
     })
+    output$input.maplink <- renderUI({
+      
+    })
     output$input.EAR <- renderUI({
-        selectInput(inputId = "EAR.select", label = "Filter to these EAR(s):", choices = uniqueEARs, multiple = T, selected = NULL)
+        selectInput(inputId = "EAR.select", label = "Filter to these EAR(s).", choices = uniqueEARs, multiple = T, selected = '-1')
     })
     output$input.year <- renderUI({
         # selectInput(inputId = "year.select", label = "Filter to these year(s):", choices = uniqueYears, multiple = T, selected = NULL)
