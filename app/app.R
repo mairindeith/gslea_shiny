@@ -65,13 +65,13 @@ ui <- fluidPage(
           # h3("Variables selected in previous panel"),
           #!# Action: if including shinyjs, hide these if there is insufficient input
           h4("Select & filter independent variable data"),
-          actionLink("corr.maplink", "View a map of ecosystem approach regions (EARs) here"),
           uiOutput("corr.varx"), # choose the ind/x variable for cross-correlation
           uiOutput("corr.EARx"), # select x EAR
           hr(),
           h4("Select & filter dependent variable data"),
           uiOutput("corr.vary"), # choose the ind/y variable for cross-correlation
           uiOutput("corr.EARy"), # select y EAR
+          actionLink("corr.maplink", "View a map of ecosystem approach regions (EARs) here"),
           hr(),
           h4("Select years for plotting"), 
           helpText("The largest continuous block of time in these years will be chosen. If you select years where data are not available, they are pairwise deleted before correlation is run. Only contiguous points (in time) are used because of the assumptions of lagged correlation analysis."),
